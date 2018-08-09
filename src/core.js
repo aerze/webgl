@@ -55,7 +55,7 @@ export default class Core {
     this.program = Core.CreateShaderProgram(this.gl, vert, frag)
   }
 
-  main () {
+  render (image) {
     const { gl, program } = this
     const positionAttributeLocation = gl.getAttribLocation(program, 'a_position')
     const resolutionUniformLocation = gl.getUniformLocation(program, 'u_resolution')
@@ -117,16 +117,51 @@ export default class Core {
     // position buffer now permanently bound to vec4 a_position
     gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset)
 
-    for (var i = 0; i < 50; i += 1) {
-      this.setRectangle(gl, this.rand(300), this.rand(300), this.rand(300), this.rand(300))
+    // for (var i = 0; i < 50; i += 1) {
+    //   this.setRectangle(gl, this.rand(300), this.rand(300), this.rand(300), this.rand(300))
 
-      gl.uniform4f(colorUniformLocation, Math.random(), Math.random(), Math.random(), 1)
+    //   gl.uniform4f(colorUniformLocation, Math.random(), Math.random(), Math.random(), 1)
 
-      const primitiveType = gl.TRIANGLES
-      const drawOffset = 0
-      const drawCount = 6
-      gl.drawArrays(primitiveType, drawOffset, drawCount)
-    }
+    //   const primitiveType = gl.TRIANGLES
+    //   const drawOffset = 0
+    //   const drawCount = 6
+    //   gl.drawArrays(primitiveType, drawOffset, drawCount)
+    // }
+
+    const textureCoordLocation = gl.getActiveAttrib(program, 'a_texCoord')
+    const textureCoordBuffer = gl.createBuffer()
+
+    // bind texture buffer to ARRAY_BUFFER
+    gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer)
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]),
+      gl.STATIC_DRAW
+    )
+    gl.enableVertexAttribArray(textureCoordLocation)
+    gl.vertexAttribPointer(textureCoordLocation, 2, gl.FLOAT, false, 0, 0)
+
+    // create a new texture
+    const texture = gl.createTexture()
+    gl.bindTexture(gl.TEXTURE_2D, texture)
+
+    // set texture parameters to render any size image
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
+
+    // upload the image into the texture
+    // const target = gl.TEXTURE_2D
+    // const level = 0
+    // const internalFormat = gl.RGBA
+    // const format = gl.RGBA
+    // const textureType = gl.UNSIGNED_BYTE
+    // const pixels = image
+
+    // gl.texImage2D(target, level, internalFormat, format, textureType, pixels)
   }
 
   rand (range) {

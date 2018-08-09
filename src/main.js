@@ -8,5 +8,13 @@ canvas.height = 300
 
 document.body.appendChild(canvas)
 
-const core = new Core(canvas)
-core.main()
+function main () {
+  const image = new Image()
+  image.src = '/images.png'
+  image.onload = () => {
+    const core = new Core(canvas)
+    core.render(image)
+  }
+}
+
+main()

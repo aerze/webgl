@@ -49,13 +49,61 @@ export default class Core {
    * @param {HTMLCanvasElement} canvas
    */
   constructor (canvas) {
-    this.gl = canvas.getContext('webgl')
-    if (!this.gl) throw new Error('Missing WebGL context')
+    this.gl = canvas.getContext('webgl2')
+    if (!this.gl) throw new Error('Missing WebGL2 context')
 
     this.program = Core.CreateShaderProgram(this.gl, vert, frag)
   }
 
-  render (image) {
+  init () {
+    const { gl, program } = this
+    this.positionAttributeLocation = gl.getAttribLocation(program, 'a_position')
+    this.positionBuffer = gl.createBuffer()
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer)
+
+    this.positions = [0, 0, 0, 0.5, 0.7, 0]
+
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.positions), gl.STATIC_DRAW)
+
+    // create a collection of attribute state
+    this.vertexArrayObject = gl.createVertexArray()
+
+    // bind vertexArrayObject to be the current vertexArray
+    gl.bindVertexArray(this.vertexArrayObject)
+
+    // setup the attributes of the vertex array
+    gl.enableVertexAttribArray(this.positionAttributeLocation)
+
+    const size = 2 // 2 components per iteration
+    const type = gl.FLOAT // the data is 32bit floats
+    const normalize = false // don't normalize the data
+    const stride = 0 // 0 = move forward size * sizeof(type) each iteration to get the next position
+    const offset = 0 // start at the beginning of the buffer
+    gl.vertexAttribPointer(this.positionAttributeLocation, size, type, normalize, stride, offset)
+    // this.positionBuffer is now bound to a_position
+
+    // draw ?
+    // set viewport
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+
+    // clear screen
+    gl.clearColor(0, 0, 0, 0)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+
+    gl.useProgram(program)
+
+    gl.bindVertexArray(this.vertexArrayObject)
+
+    const primitiveType = gl.TRIANGLES
+    const drawOffset = 0
+    const count = 3
+    gl.drawArrays(primitiveType, drawOffset, count)
+  }
+
+  render () {}
+
+  oldRender (image) {
     const { gl, program } = this
     const positionAttributeLocation = gl.getAttribLocation(program, 'a_position')
     const resolutionUniformLocation = gl.getUniformLocation(program, 'u_resolution')

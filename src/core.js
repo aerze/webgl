@@ -46,6 +46,24 @@ export default class Core {
   }
 
   /**
+   * Make the drawing buffer match the size of the stretched canvas
+   * @param {HTMLCanvasElement} canvas
+   */
+  static resize (canvas) {
+    // css pixels to real pixels
+    // const ratio = window.devicePixelRatio || 1
+    const ratio = 1
+    const { clientWidth, clientHeight, width, height } = canvas
+    const displayWidth = Math.floor(clientWidth * ratio)
+    const displayHeight = Math.floor(clientHeight * ratio)
+
+    if (width !== displayWidth || height !== displayHeight) {
+      canvas.width = clientWidth
+      canvas.height = clientHeight
+    }
+  }
+
+  /**
    * @param {HTMLCanvasElement} canvas
    */
   constructor (canvas) {
@@ -53,38 +71,62 @@ export default class Core {
     if (!this.gl) throw new Error('Missing WebGL2 context')
 
     this.program = Core.CreateShaderProgram(this.gl, vert, frag)
+
+    this.render = this.render.bind(this)
+
+    this.then = 0
+    this.timer = 0
+    this.frame = 0
   }
 
   init () {
     const { gl, program } = this
+    // get locations
     this.positionAttributeLocation = gl.getAttribLocation(program, 'a_position')
+    this.resolutionUniformLocation = gl.getUniformLocation(program, 'u_resolution')
+    this.colorUniformLocation = gl.getUniformLocation(program, 'u_color')
+
+    // POSITION
+    // create buffer
     this.positionBuffer = gl.createBuffer()
-
+    // bind to active buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer)
-
-    this.positions = [0, 0, 0, 0.5, 0.7, 0]
-
+    // make data
+    this.positions = [10, 20, 80, 20, 10, 30, 10, 30, 80, 20, 80, 30]
+    // write data to active buffer once
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.positions), gl.STATIC_DRAW)
 
     // create a collection of attribute state
     this.vertexArrayObject = gl.createVertexArray()
-
     // bind vertexArrayObject to be the current vertexArray
     gl.bindVertexArray(this.vertexArrayObject)
-
     // setup the attributes of the vertex array
     gl.enableVertexAttribArray(this.positionAttributeLocation)
 
+    // bind this.positionBuffer to a_position
     const size = 2 // 2 components per iteration
     const type = gl.FLOAT // the data is 32bit floats
     const normalize = false // don't normalize the data
     const stride = 0 // 0 = move forward size * sizeof(type) each iteration to get the next position
     const offset = 0 // start at the beginning of the buffer
     gl.vertexAttribPointer(this.positionAttributeLocation, size, type, normalize, stride, offset)
-    // this.positionBuffer is now bound to a_position
+    // gl.ARRAY_BUFFER can now be used again
 
-    // draw ?
-    // set viewport
+    this.render()
+  }
+
+  render (now) {
+    this.frame++
+    const nowSeconds = now * 0.001
+    const deltaTime = nowSeconds || 0 - this.then
+    console.log(now, nowSeconds, deltaTime || 0)
+    this.then = nowSeconds
+    this.timer = 1
+
+    const { gl, program } = this
+    Core.resize(gl.canvas)
+
+    // set viewport`
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
 
     // clear screen
@@ -95,13 +137,46 @@ export default class Core {
 
     gl.bindVertexArray(this.vertexArrayObject)
 
-    const primitiveType = gl.TRIANGLES
-    const drawOffset = 0
-    const count = 3
-    gl.drawArrays(primitiveType, drawOffset, count)
-  }
+    // pass canvas resolution into the uniform
+    gl.uniform2f(this.resolutionUniformLocation, gl.canvas.width, gl.canvas.height)
 
-  render () {}
+    function randomInt (range) {
+      return Math.floor(Math.random() * range)
+    }
+
+    function setRectangle (gl, x, y, width, height) {
+      const left = x
+      const right = x + width
+      const top = y
+      const bottom = y + height
+
+      // gl.bufferData() affects whatever buffer is currently
+      // bound to the 'ARRAY_BUFFER' bind point
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([left, top, right, top, left, bottom, left, bottom, right, top, right, bottom]),
+        gl.STATIC_DRAW
+      )
+    }
+
+    if (this.timer >= 1) {
+      console.log(this.timer)
+      this.timer = 0
+      // console.log(this.timer)
+      setRectangle(gl, randomInt(300), randomInt(300), randomInt(300), randomInt(300))
+
+      gl.uniform4f(this.colorUniformLocation, Math.random(), Math.random(), Math.random(), 1)
+
+      const primitiveType = gl.TRIANGLES
+      const drawOffset = 0
+      const count = 6
+      gl.drawArrays(primitiveType, drawOffset, count)
+    }
+
+    if (this.frame < 10) {
+      requestAnimationFrame(this.render)
+    }
+  }
 
   oldRender (image) {
     const { gl, program } = this

@@ -1,4 +1,5 @@
 import Core from './core.js'
+
 const { body } = window.document
 body.style.margin = '0'
 body.style.width = '100vw'
@@ -12,11 +13,10 @@ document.body.appendChild(canvas)
 
 function main () {
   const image = new Image()
-  image.src = '/images.png'
   image.onload = () => {
-    const core = new Core(canvas)
-    core.init(image)
+    new Core(canvas)
   }
+  image.src = '/images.png'
 }
 
 main()

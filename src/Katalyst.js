@@ -1,94 +1,7 @@
 import vert from './vertex.glsl'
 import frag from './fragment.glsl'
-
-class WebGL {
-  /**
-   * Compiles shader from source
-   * @param {WebGLRenderingContext} gl
-   * @param {string} source
-   * @param {number} type
-   */
-  static compileShader (gl, source, type) {
-    var shader = gl.createShader(type)
-    gl.shaderSource(shader, source)
-    gl.compileShader(shader)
-
-    const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS)
-    const shaderInfo = gl.getShaderInfoLog(shader)
-    if (shaderInfo) console.log(shaderInfo)
-    if (success) return shader
-
-    gl.deleteShader(shader)
-    throw Error('Shader failed to compile')
-  }
-
-  /**
-   * Creates a program using 2 shaders
-   * @param {WebGLRenderingContext} gl
-   * @param {string} vsSource - vertex shader
-   * @param {string} fsSource - fragment shader
-   */
-  static createShaderProgram (gl, vsSource, fsSource) {
-    const program = gl.createProgram()
-    const vShader = WebGL.compileShader(gl, vsSource, gl.VERTEX_SHADER)
-    const fShader = WebGL.compileShader(gl, fsSource, gl.FRAGMENT_SHADER)
-    gl.attachShader(program, vShader)
-    gl.attachShader(program, fShader)
-    gl.linkProgram(program)
-
-    const success = gl.getProgramParameter(program, gl.LINK_STATUS)
-    const programInfo = gl.getProgramInfoLog(program)
-    if (programInfo) console.log(programInfo)
-    if (success) return program
-
-    gl.deleteProgram(program)
-    throw Error('Program failed to link')
-  }
-
-  /**
-   * Creates a program using 2 shaders
-   * @param {WebGLRenderingContext} gl
-   * @param {number} target - buffer target
-   * @param {number} size
-   * @param {number} usage
-   */
-  static createBuffer (gl, target, size, usage) {
-    const buffer = gl.createBuffer()
-    gl.bindBuffer(target, buffer)
-    gl.bufferData(target, size, usage)
-    return buffer
-  }
-}
-
-class Renderer {
-  /**
-   * Make the drawing buffer match the size of the stretched canvas
-   * @param {HTMLCanvasElement} canvas
-   */
-  static resize (canvas) {
-    // css pixels to real pixels
-    // const ratio = window.devicePixelRatio || 1
-    const ratio = 1
-    const { clientWidth, clientHeight, width, height } = canvas
-    const displayWidth = Math.floor(clientWidth * ratio)
-    const displayHeight = Math.floor(clientHeight * ratio)
-
-    if (width !== displayWidth || height !== displayHeight) {
-      canvas.width = clientWidth
-      canvas.height = clientHeight
-    }
-  }
-}
-
-class Entity {
-  constructor (x = 0, y = 0, width = 20, height = 20, color = [1, 1, 0]) {
-    this.x = x
-    this.y = y
-    this.w = width
-    this.h = height
-    this.c = color
-  }
-}
+import WebGL from './WebGl'
+import Matrix from './Matrix'
 
 export default class Katalyst {
   /**
@@ -100,7 +13,7 @@ export default class Katalyst {
     // create program from shaders
     const program = (this.program = WebGL.createShaderProgram(gl, vert, frag))
     // this will determine the size of the blocks
-    const VERTEX_SIZE = 8 + 4
+    const VERTEX_SIZE = 4
     // the max amount of entities expected floor((2 ^ 16) / 6)
     const MAX_BATCH = 10922
     // the amount of vertices per quad
@@ -114,51 +27,148 @@ export default class Katalyst {
     // the size of max quad vertices
     const INDEX_DATA_SIZE = MAX_VERTICES_PER_QUAD * 2
 
-    // create various arrays
+    this.loop = this.loop.bind(this)
 
-    // will contain entity vertex data
-    this.vertexData = new ArrayBuffer(VERTEX_DATA_SIZE)
-    // will contain entity to quad vertex index data
-    this.vertexIndexData = new Uint16Array(INDEX_DATA_SIZE)
-    // a 32bit float ArrayView into vertex data array
-    this.vertexPositionView = new Float32Array(this.vertexData)
-    // a 32bit unsigned integer ArrayView into the vertex data array
-    this.vertexColorView = new Uint32Array(this.vertexData)
-    // will contain all entities to be rendered
-    this.entities = [new Entity(), new Entity(50, 50), new Entity(80, 90)]
-
-    // store locations of shader inputs
     this.positionLocation = gl.getAttribLocation(program, 'a_position')
-    this.resolutionLocation = gl.getUniformLocation(program, 'u_resolution')
-    this.colorLocation = gl.getUniformLocation(program, 'u_color')
+
     this.matrixLocation = gl.getUniformLocation(program, 'u_matrix')
+    this.colorLocation = gl.getUniformLocation(program, 'u_color')
 
-    // create bufferObjects for the vertex and index array
-    this.indexBufferObject = WebGL.createBuffer(
-      gl,
-      gl.ELEMENT_ARRAY_BUFFER,
-      this.vertexIndexData.byteLength,
-      gl.STATIC_DRAW
-    )
-    this.vertexBufferObject = WebGL.createBuffer(gl, gl.ARRAY_BUFFER, this.vertexData.byteLength, gl.DYNAMIC_DRAW)
+    this.vertexData = new ArrayBuffer(VERTEX_DATA_SIZE)
+    this.vertexPositionData = new Float32Array(this.vertexData)
 
-    // enable stuff
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-    gl.enable(gl.BLEND)
+    this.vertexBufferObject = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBufferObject)
+    gl.bufferData(gl.ARRAY_BUFFER, this.vertexData.byteLength, gl.DYNAMIC_DRAW)
+
+    this.vao = gl.createVertexArray()
+    gl.bindVertexArray(this.vao)
+    gl.enableVertexAttribArray(this.positionLocation)
+    gl.vertexAttribPointer(this.positionLocation, 2, gl.FLOAT, false, 0, 0)
+
+    this.last = 0
+    this.count = 6
+
+    this.trans = [0, 0]
+    this.angle = 0
+    this.scale = [1, 1]
+
+    this.box = { x: 0, y: 0, w: 20, h: 20, c: [255, 255, 0] }
+
+    window.requestAnimationFrame(this.loop)
+  }
+
+  loop (now) {
+    const { gl, program } = this
+    const delta = (now || 0) - this.last
+    console.log('loop ∆', delta)
+    this.last = now
+
+    this.resizeCanvas()
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+    gl.clearColor(0, 0, 0, 1)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+
     gl.useProgram(program)
+    gl.bindVertexArray(this.vao)
 
-    // pre fill index array with indices mapping the 4 entity vertices to 6 quad vertices
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBufferObject)
-    let i, j
-    for (i = j = 0; i < MAX_BATCH * VERTICES_PER_QUAD; i += VERTICES_PER_QUAD, j += VERTICES_PER_ENTITY) {
-      this.vertexIndexData[i + 0] = j + 0
-      this.vertexIndexData[i + 1] = j + 1
-      this.vertexIndexData[i + 2] = j + 2
-      this.vertexIndexData[i + 3] = j + 0
-      this.vertexIndexData[i + 4] = j + 3
-      this.vertexIndexData[i + 5] = j + 1
+    this.update()
+    this.draw()
+
+    gl.drawArrays(gl.TRIANGLES, 0, this.count)
+
+    if (this.play) requestAnimationFrame(this.loop)
+  }
+
+  update () {
+    const { gl } = this
+    const { width, height } = gl.canvas
+    const [tx, ty] = this.trans
+    const angle = this.angle
+    const [sx, sy] = this.scale
+
+    const matrix = Matrix.fromTransformation(width, height, tx, ty, angle, sx, sy)
+    console.log('update', matrix.contents)
+
+    gl.uniformMatrix3fv(this.matrixLocation, false, matrix.contents)
+  }
+
+  draw () {
+    const { gl, box } = this
+    const { x, y, w, h } = box
+
+    let offset = 0
+
+    const left = x
+    const right = x + w
+    const top = y
+    const bottom = y + h
+
+    const x0 = left
+    const y0 = top
+
+    const x1 = right
+    const y1 = top
+
+    const x2 = left
+    const y2 = bottom
+
+    const x3 = left
+    const y3 = bottom
+
+    const x4 = right
+    const y4 = top
+
+    const x5 = right
+    const y5 = bottom
+
+    // left, top
+    this.vertexPositionData[offset++] = x0
+    this.vertexPositionData[offset++] = y0
+
+    // right, top
+    this.vertexPositionData[offset++] = x1
+    this.vertexPositionData[offset++] = y1
+
+    // left, bot
+    this.vertexPositionData[offset++] = x2
+    this.vertexPositionData[offset++] = y2
+
+    // left, bot
+    this.vertexPositionData[offset++] = x3
+    this.vertexPositionData[offset++] = y3
+
+    // right, top
+    this.vertexPositionData[offset++] = x4
+    this.vertexPositionData[offset++] = y4
+
+    // right, bot
+    this.vertexPositionData[offset++] = x5
+    this.vertexPositionData[offset++] = y5
+
+    console.log('draw', this.vertexPositionData)
+    console.log(gl.getActiveUniform(this.program, this.colorLocation))
+    console.log(gl.getUniform(this.program, this.colorLocation))
+
+    gl.uniform4f(this.colorLocation, 1, 0, 1, 1)
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.vertexPositionData)
+  }
+
+  /**
+   * Make the drawing buffer match the size of the stretched canvas
+   */
+  resizeCanvas () {
+    const { canvas } = this.gl
+    // css pixels to real pixels
+    // const ratio = window.devicePixelRatio || 1
+    const ratio = 1
+    const { clientWidth, clientHeight, width, height } = canvas
+    const displayWidth = Math.floor(clientWidth * ratio)
+    const displayHeight = Math.floor(clientHeight * ratio)
+
+    if (width !== displayWidth || height !== displayHeight) {
+      canvas.width = clientWidth
+      canvas.height = clientHeight
     }
-    gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, this.vertexIndexData)
-    // end buffer fill
   }
 }

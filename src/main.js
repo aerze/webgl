@@ -1,22 +1,14 @@
-import Core from './core.js'
+import Katalyst from './Katalyst'
 
-const { body } = window.document
+const { body } = document
 body.style.margin = '0'
 body.style.width = '100vw'
 body.style.height = '100vh'
+body.style.overflow = 'hidden'
 
 const canvas = document.createElement('canvas')
 canvas.width = body.clientWidth
 canvas.height = body.clientHeight
+body.appendChild(canvas)
 
-document.body.appendChild(canvas)
-
-function main () {
-  const image = new Image()
-  image.onload = () => {
-    new Core(canvas)
-  }
-  image.src = '/images.png'
-}
-
-main()
+const k = new Katalyst(canvas)

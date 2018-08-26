@@ -1,4 +1,3 @@
-
 /**
  * @memberof Katalyst
  */
@@ -71,9 +70,9 @@ class TinyCanvas {
    * @param {HTMLCanvasElement} canvas
    */
   constructor (canvas) {
-  /** @type {WebGLRenderingContext} */
+    /** @type {WebGLRenderingContext} */
     const gl = canvas.getContext('webgl')
-    const VERTEX_SIZE = (4 * 2) + (4 * 2) + (4)
+    const VERTEX_SIZE = 4 * 2 + 4 * 2 + 4
     const MAX_BATCH = 10922 // floor((2 ^ 16) / 6)
     // const MAX_STACK = 100
     // const MAT_SIZE = 6
@@ -83,7 +82,9 @@ class TinyCanvas {
     const INDEX_DATA_SIZE = MAX_BATCH * (2 * VERTICES_PER_QUAD)
     const width = canvas.width
     const height = canvas.height
-    const shader = TinyCanvas.CreateShaderProgram(gl, `
+    const shader = TinyCanvas.CreateShaderProgram(
+      gl,
+      `
       precision lowp float;
       attribute vec2 a, b;
       attribute vec4 c;
@@ -95,14 +96,16 @@ class TinyCanvas {
         gl_Position=m*vec4(a,1.0,1.0);
         d=b;
         e=c;
-      }`, `
+      }`,
+      `
       precision lowp float;
       varying vec2 d;
       varying vec4 e;
       uniform sampler2D f;
       void main(){
         gl_FragColor=texture2D(f,d)*e;
-      }`)
+      }`
+    )
 
     const glBufferSubData = gl.bufferSubData.bind(gl)
     const glDrawElements = gl.drawElements.bind(gl)
@@ -152,12 +155,10 @@ class TinyCanvas {
     gl.vertexAttribPointer(locB, 2, gl.FLOAT, 0, VERTEX_SIZE, 8)
     gl.enableVertexAttribArray(locC)
     gl.vertexAttribPointer(locC, 4, gl.FLOAT, 1, VERTEX_SIZE, 16)
-    gl.uniformMatrix4fv(gl.getUniformLocation(shader, 'm'), 0,
-      new Float32Array([
-        2 / width, 0, 0, 0,
-        0, -2 / height, 0, 0,
-        0, 0, 1, 1, -1, 1, 0, 0
-      ])
+    gl.uniformMatrix4fv(
+      gl.getUniformLocation(shader, 'm'),
+      0,
+      new Float32Array([2 / width, 0, 0, 0, 0, -2 / height, 0, 0, 0, 0, 1, 1, -1, 1, 0, 0])
     )
     gl.activeTexture(gl.TEXTURE0)
 
@@ -165,7 +166,7 @@ class TinyCanvas {
     this.height = height
     this.g = gl
     this.c = canvas
-    this.col = 0xFFFFFFFF
+    this.col = 0xffffffff
 
     /**
      *  Sets the background color. Maps to glClearColor. It requires normalized to 1.0 values
@@ -272,6 +273,7 @@ class TinyCanvas {
       const y2 = y + h
       const x3 = x + w
       const y3 = y
+
       const a = mat[0]
       const b = mat[1]
       const c = mat[2]
@@ -281,8 +283,7 @@ class TinyCanvas {
       let offset = 0
       const argb = this.col
 
-      if (texture !== currentTexture ||
-        count + 1 >= MAX_BATCH) {
+      if (texture !== currentTexture || count + 1 >= MAX_BATCH) {
         glBufferSubData(gl.ARRAY_BUFFER, 0, vertexData)
         glDrawElements(4, count * VERTICES_PER_QUAD, gl.UNSIGNED_SHORT, 0)
         count = 0

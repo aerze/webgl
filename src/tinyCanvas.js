@@ -132,7 +132,7 @@ class TinyCanvas {
     let indexB
 
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-    gl.enable(BLEND)
+    gl.enable(gl.BLEND)
     gl.useProgram(shader)
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, IBO)
     for (indexA = indexB = 0; indexA < MAX_BATCH * VERTICES_PER_QUAD; indexA += VERTICES_PER_QUAD, indexB += 4) {

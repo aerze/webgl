@@ -25,12 +25,13 @@ export default class Katalyst {
     console.log('VERTICES_PER_QUAD', VERTICES_PER_QUAD)
     // the amount of vertices per entity
     const VERTICES_PER_ENTITY = 4
+    // const VERTICES_PER_ENTITY = 6
     console.log('VERTICES_PER_ENTITY', VERTICES_PER_ENTITY)
     // max vertices in vertex array
     const MAX_VERTICES_PER_QUAD = MAX_BATCH * VERTICES_PER_QUAD
     console.log('MAX_VERTICES_PER_QUAD', MAX_VERTICES_PER_QUAD)
     // the size of max entity vertices
-    const VERTEX_DATA_SIZE = VERTEX_BYTE_SIZE * MAX_BATCH * VERTICES_PER_QUAD
+    const VERTEX_DATA_SIZE = VERTEX_BYTE_SIZE * MAX_BATCH * VERTICES_PER_ENTITY
     console.log('VERTEX_DATA_SIZE', VERTEX_DATA_SIZE)
     // the size of max quad vertices
     const INDEX_DATA_SIZE = MAX_VERTICES_PER_QUAD
@@ -79,15 +80,16 @@ export default class Katalyst {
 
     console.log('vertices', this.vertexData, this.vertexData.byteLength, 'bytes')
     // enable and initialize attribute pointers
-    this.vao = gl.createVertexArray()
-    gl.bindVertexArray(this.vao)
+    // this.vao = gl.createVertexArray()
+    // gl.bindVertexArray(this.vao)
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBufferObject)
     gl.enableVertexAttribArray(this.positionLocation)
     gl.vertexAttribPointer(this.positionLocation, 2, gl.FLOAT, false, VERTEX_BYTE_SIZE, 0)
 
     this.last = 0
     this.verticesCount = 1 * VERTICES_PER_QUAD
 
-    this.trans = [0, 0]
+    this.trans = [50, 50]
     this.angle = 0
     this.scale = [1, 1]
 
@@ -151,11 +153,11 @@ export default class Katalyst {
     const x2 = left
     const y2 = bottom
 
-    const x3 = left
-    const y3 = bottom
+    // const x3 = left
+    // const y3 = bottom
 
-    const x4 = right
-    const y4 = top
+    // const x4 = right
+    // const y4 = top
 
     const x5 = right
     const y5 = bottom
@@ -172,13 +174,13 @@ export default class Katalyst {
     this.vertexPositionData[offset++] = x2
     this.vertexPositionData[offset++] = y2
 
-    // left, bot
-    this.vertexPositionData[offset++] = x3
-    this.vertexPositionData[offset++] = y3
+    // // left, bot
+    // this.vertexPositionData[offset++] = x3
+    // this.vertexPositionData[offset++] = y3
 
-    // right, top
-    this.vertexPositionData[offset++] = x4
-    this.vertexPositionData[offset++] = y4
+    // // right, top
+    // this.vertexPositionData[offset++] = x4
+    // this.vertexPositionData[offset++] = y4
 
     // right, bot
     this.vertexPositionData[offset++] = x5
@@ -188,8 +190,8 @@ export default class Katalyst {
 
     gl.uniform4f(this.colorLocation, 1, 0, 1, 1)
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.vertexPositionData)
-    gl.drawArrays(gl.TRIANGLES, 0, this.verticesCount)
-    // gl.drawElements(gl.TRIANGLES, 3, gl.UNSIGNED_SHORT, 0)
+    // gl.drawArrays(gl.TRIANGLES, 0, this.verticesCount)
+    gl.drawElements(gl.TRIANGLES, this.verticesCount, gl.UNSIGNED_SHORT, 0)
   }
 
   /**

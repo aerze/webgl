@@ -11,4 +11,8 @@ canvas.width = body.clientWidth
 canvas.height = body.clientHeight
 body.appendChild(canvas)
 
-const k = new Katalyst(canvas)
+const image = new Image()
+image.src = './images.png'
+image.onload = () => {
+  const k = new Katalyst(canvas, image)
+}
